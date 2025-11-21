@@ -1,0 +1,106 @@
+const Enrollment = require('../models/Enrollment');
+const Course = require('../models/Course');
+
+exports.enroll = async (req, res, next) => {
+  try {
+    const userId = req.user.id;
+    const courseId = req.params.courseId;
+    const course = await Course.findById(courseId);
+    if (!course || !course.isActive) return res.status(404).json({ message: 'course not found' });
+    const existing = await Enrollment.findOne({ user: userId, course: courseId });
+    if (existing) return res.status(400).json({ message: 'already enrolled' });
+    const enroll = await Enrollment.create({ user: userId, course: courseId });
+    return res.status(201).json({ enrollment: enroll });
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.listUserEnrollments = async (req, res, next) => {
+  try {
+    const userId = req.user.id;
+    const filter = { user: userId };
+    // optional status filter: active|completed
+    if (req.query.status === 'active') filter.isCompleted = false;
+    if (req.query.status === 'completed') filter.isCompleted = true;
+    const enrollments = await Enrollment.find(filter).populate('course');
+    return res.json({ enrollments });
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.markLessonComplete = async (req, res, next) => {
+  try {
+    const userId = req.user.id;
+    const courseId = req.params.courseId;
+    const { chapterId, lessonId } = req.body;
+    if (!chapterId || !lessonId) return res.status(400).json({ message: 'chapterId and lessonId required' });
+
+    const enrollment = await Enrollment.findOne({ user: userId, course: courseId });
+    if (!enrollment) return res.status(404).json({ message: 'not enrolled' });
+
+    const already = enrollment.completedLessons.find(cl => cl.chapter.toString() === chapterId && cl.lesson.toString() === lessonId);
+    if (already) return res.json({ message: 'lesson already marked complete', enrollment });
+
+    enrollment.completedLessons.push({ chapter: chapterId, lesson: lessonId });
+
+    // check if all lessons are completed
+    const course = await Course.findById(courseId);
+    if (!course) return res.status(404).json({ message: 'course not found' });
+
+    // count total lessons
+    let totalLessons = 0;
+    course.chapters.forEach(ch => { totalLessons += (ch.lessons || []).length; });
+    const completedCount = enrollment.completedLessons.length;
+    if (completedCount >= totalLessons && totalLessons > 0) {
+      enrollment.readyForQuiz = true;
+    }
+
+    await enrollment.save();
+    return res.json({ enrollment });
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.getProgress = async (req, res, next) => {
+  try {
+    const userId = req.user.id;
+    const courseId = req.params.courseId;
+    const enrollment = await Enrollment.findOne({ user: userId, course: courseId }).populate('course');
+    if (!enrollment) return res.status(404).json({ message: 'not enrolled' });
+    return res.json({ enrollment });
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.getNextLesson = async (req, res, next) => {
+  try {
+    const userId = req.user.id;
+    const courseId = req.params.courseId;
+    const enrollment = await Enrollment.findOne({ user: userId, course: courseId });
+    if (!enrollment) return res.status(404).json({ message: 'not enrolled' });
+
+    const course = await Course.findById(courseId);
+    if (!course) return res.status(404).json({ message: 'course not found' });
+
+    // build set of completed lesson ids
+    const completed = new Set(enrollment.completedLessons.map(cl => `${cl.chapter.toString()}::${cl.lesson.toString()}`));
+
+    for (const ch of course.chapters) {
+      for (const lesson of ch.lessons) {
+        const key = `${ch._id.toString()}::${lesson._id.toString()}`;
+        if (!completed.has(key)) {
+          return res.json({ next: { chapterId: ch._id, lessonId: lesson._id, lesson } });
+        }
+      }
+    }
+
+    // all lessons completed
+    return res.json({ next: null, message: 'all lessons completed' });
+  } catch (err) {
+    next(err);
+  }
+};
