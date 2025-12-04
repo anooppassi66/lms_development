@@ -11,12 +11,14 @@ const enrollmentRoutes = require('./routes/enrollment');
 const quizRoutes = require('./routes/quiz');
 const certificateRoutes = require('./routes/certificate');
 const employeeRoutes = require('./routes/employee');
+const adminRoutes = require('./routes/admin');
 const path = require('path');
 
 app.use(cors());
 app.use(express.json());
 
 app.use('/api/auth', authRoutes);
+app.use('/api/admin', adminRoutes);
 app.use('/api/categories', categoryRoutes);
 app.use('/api/courses', courseRoutes);
 app.use('/api/enrollments', enrollmentRoutes);

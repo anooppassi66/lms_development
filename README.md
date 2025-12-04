@@ -1,42 +1,33 @@
 # LMS Backend (Express + MongoDB)
 
-This is a starter REST API for the LMS specified by the user. It contains authentication, user model, and profile edit endpoints. More features (courses, categories, quizzes, certificates) will follow.
+Complete REST API for an LMS system with admin course/quiz management, employee enrollment, progress tracking, and certificate generation.
 
-Quick start
+## Quick Start
 
-1. Copy `.env.example` to `.env` and update values (MongoDB URI, JWT secret, optional admin seed credentials).
+1. **Copy `.env.example` to `.env`** and update values
+2. **Install dependencies:** `npm install`
+3. **Start server:** `npm run dev`
+4. **Seed admin:** `curl -X POST http://localhost:4000/api/auth/seed-admin`
+5. **Login:** `curl -X POST http://localhost:4000/api/auth/login -H "Content-Type: application/json" -d '{"email":"admin@example.com","password":"admin123"}'`
 
-2. Install dependencies:
+## Core Features
 
-```bash
-npm install
-```
+- **Authentication**: Login with JWT, admin seed, employee registration
+- **Categories**: Admin CRUD; public read
+- **Courses**: Admin create/edit/deactivate with chapters/lessons; public search/list
+- **Enrollments**: Employee enroll, mark lessons complete, track progress
+- **Quizzes**: Admin create/deactivate; employee attempt with grading
+- **Certificates**: PDF generation on quiz pass; admin list all, employees view own
+- **Employee Dashboard**: View all enrollments with progress and next lesson
+- **Admin Management**: List employees with pagination, deactivate accounts and quizzes
 
-3. Start the server (development):
+## API Endpoints
 
-```bash
-npm run dev
-```
+### Admin Employee Management
+- `GET /api/admin/employees` — List employees (page, limit, active filter)
+- `POST /api/admin/employees/:employeeId/deactivate` — Deactivate employee account
 
-4. Seed an initial admin (if you set ADMIN_EMAIL and ADMIN_PASSWORD in `.env`):
+### Admin Quiz Management
+- `POST /api/admin/quizzes/:quizId/deactivate` — Deactivate quiz (not visible to employees)
 
-```bash
-curl -X POST http://localhost:4000/api/auth/seed-admin
-```
-
-5. Login:
-
-```bash
-curl -X POST http://localhost:4000/api/auth/login -H "Content-Type: application/json" -d '{"email":"admin@example.com","password":"admin123"}'
-```
-
-6. Create employee (admin only):
-
-```bash
-curl -X POST http://localhost:4000/api/auth/register -H "Content-Type: application/json" -H "Authorization: Bearer <TOKEN>" -d '{"email":"employee1@example.com","first_name":"Employee","last_name":"One"}'
-```
-
-Notes
-
-- Passwords are hashed using bcrypt. For the admin-created employee flow the API returns a temporary password (in real production you would email this and force reset on first login).
-- This initial scaffold implements only auth, user model and profile editing. We'll implement course/category/quiz/certificate features next.
+See README.md in full for complete endpoint documentation and workflow examples.

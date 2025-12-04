@@ -15,7 +15,8 @@ const UserSchema = new mongoose.Schema({
   role: { type: String, enum: ['admin', 'employee'], default: 'employee' },
   password: { type: String, required: true },
   isActive: { type: Boolean, default: true },
-  createdAt: { type: Date, default: Date.now }
+  createdAt: { type: Date, default: Date.now },
+  deactivatedAt: { type: Date }
 });
 
 UserSchema.pre('save', async function (next) {

@@ -21,6 +21,7 @@ exports.attemptQuiz = async (req, res, next) => {
     const { answers } = req.body; // [{ questionId, answerIndex }]
     const quiz = await Quiz.findById(quizId);
     if (!quiz) return res.status(404).json({ message: 'quiz not found' });
+    if (!quiz.isActive) return res.status(404).json({ message: 'quiz not available' });
 
     // if quiz is tied to a course, ensure user is enrolled and readyForQuiz
     let enrollment = null;

@@ -15,6 +15,7 @@ const QuizSchema = new mongoose.Schema({
   passMarks: { type: Number, required: true },
   durationMinutes: { type: Number, default: 0 },
   isPublic: { type: Boolean, default: false },
+  isActive: { type: Boolean, default: true },
   createdAt: { type: Date, default: Date.now }
 });
 
