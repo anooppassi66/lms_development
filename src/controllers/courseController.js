@@ -104,12 +104,13 @@ exports.getCoursePublic = async (req, res, next) => {
       response.course.chapters = response.course.chapters.map(ch => {
         const chId = ch._id;
         const lessons = (ch.lessons || []).map(ls => ({
-          _id: ls._id,
-          name: ls.name,
-          video_url: ls.video_url,
-          description: ls.description,
-          completed: completedSet.has(`${chId.toString()}::${ls._id.toString()}`)
-        }));
+            _id: ls._id,
+            name: ls.name,
+            video_url: ls.video_url,
+            thumbnail_url: ls.thumbnail_url,
+            description: ls.description,
+            completed: completedSet.has(`${chId.toString()}::${ls._id.toString()}`)
+          }));
         return { _id: chId, title: ch.title, lessons };
       });
 
@@ -145,10 +146,17 @@ exports.addLesson = async (req, res, next) => {
     if (!chapter) return res.status(404).json({ message: 'chapter not found' });
 
     const lesson = { name, description };
-    if (req.file) {
-      // store accessible path
-      lesson.video_url = `/uploads/${req.file.filename}`;
+
+    // multer.fields places uploaded files in req.files as arrays
+    if (req.files) {
+      if (req.files.video && req.files.video[0]) {
+        lesson.video_url = `/uploads/${req.files.video[0].filename}`;
+      }
+      if (req.files.thumbnail && req.files.thumbnail[0]) {
+        lesson.thumbnail_url = `/uploads/${req.files.thumbnail[0].filename}`;
+      }
     }
+
     chapter.lessons.push(lesson);
     await course.save();
     return res.status(201).json({ chapter });

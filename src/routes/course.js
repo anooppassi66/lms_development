@@ -31,7 +31,10 @@ router.get('/:id', authMiddleware, requireRole('admin'), courseController.getCou
 router.post('/:courseId/chapters', authMiddleware, requireRole('admin'), [
   require('express-validator').body('title').isLength({ min: 1 }).withMessage('chapter title required')
 ], require('../middleware/validate'), courseController.addChapter);
-router.post('/:courseId/chapters/:chapterId/lessons', authMiddleware, requireRole('admin'), upload.single('video'), [
+router.post('/:courseId/chapters/:chapterId/lessons', authMiddleware, requireRole('admin'), upload.fields([
+  { name: 'video', maxCount: 1 },
+  { name: 'thumbnail', maxCount: 1 }
+]), [
   // lesson name optional if video provided
   require('express-validator').body('name').optional().isLength({ min: 1 })
 ], require('../middleware/validate'), courseController.addLesson);
