@@ -1,5 +1,7 @@
 const User = require('../models/User');
 const Quiz = require('../models/Quiz');
+const Course = require('../models/Course');
+const Enrollment = require('../models/Enrollment');
 
 // List employees with pagination
 exports.listEmployees = async (req, res, next) => {
@@ -60,6 +62,55 @@ exports.deactivateQuiz = async (req, res, next) => {
     await quiz.save();
 
     return res.json({ message: 'quiz deactivated', quiz: { id: quiz._id, title: quiz.title, isActive: quiz.isActive } });
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.dashboard = async (req, res, next) => {
+  try {
+    const [totalEmployees, totalCourses, activeCourses, totalEnrollments, completedEnrollments] = await Promise.all([
+      User.countDocuments({ role: 'employee' }),
+      Course.countDocuments({}),
+      Course.countDocuments({ isActive: true, status: { $ne: 'deleted' } }),
+      Enrollment.countDocuments({}),
+      Enrollment.countDocuments({ isCompleted: true })
+    ]);
+
+    let employeesWithCompleted = 0;
+    const agg = await Enrollment.aggregate([
+      { $match: { isCompleted: true } },
+      { $group: { _id: '$user', count: { $sum: 1 } } }
+    ]);
+    employeesWithCompleted = agg.length;
+
+    const avgCoursesCompleted = totalEmployees > 0 ? Math.round((completedEnrollments / totalEmployees) * 100) / 100 : 0;
+    const employeeCompletionPercentage = totalEmployees > 0 ? Math.round((employeesWithCompleted / totalEmployees) * 100) : 0;
+
+    const recent = await Course.find({}).sort({ createdAt: -1 }).limit(5);
+    const recentWithEnrollCounts = await Promise.all(recent.map(async (c) => {
+      const enrolledCount = await Enrollment.countDocuments({ course: c._id });
+      let thumb = null;
+      for (const ch of (c.chapters || [])) {
+        for (const ls of (ch.lessons || [])) {
+          if (ls.thumbnail_url) { thumb = ls.thumbnail_url; break; }
+        }
+        if (thumb) break;
+      }
+      return { id: c._id, title: c.title, status: c.status, enrolled: enrolledCount, thumbnail: thumb };
+    }));
+
+    return res.json({
+      metrics: {
+        enrolledCourses: totalEnrollments,
+        activeCourses,
+        avgCoursesCompleted,
+        totalEmployees,
+        totalCourses,
+        employeeCompletionPercentage
+      },
+      recentCourses: recentWithEnrollCounts
+    });
   } catch (err) {
     next(err);
   }
