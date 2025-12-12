@@ -59,17 +59,32 @@ exports.listCourses = async (req, res, next) => {
     // only include active unless explicitly requested
     if (!req.query.include_inactive) filter.isActive = true;
 
-    // pagination
-    const page = Math.max(1, parseInt(req.query.page || '1'));
+    // pagination (support skip/limit or page/limit)
+    const hasSkip = req.query.skip !== undefined;
     const limit = Math.min(100, parseInt(req.query.limit || '10'));
-    const skip = (page - 1) * limit;
+    const page = hasSkip ? Math.floor(parseInt(req.query.skip || '0') / limit) + 1 : Math.max(1, parseInt(req.query.page || '1'));
+    const skip = hasSkip ? Math.max(0, parseInt(req.query.skip || '0')) : (page - 1) * limit;
 
-    const [total, courses] = await Promise.all([
+    const [total, docs] = await Promise.all([
       Course.countDocuments(filter),
       Course.find(filter).populate('category').sort({ createdAt: -1 }).skip(skip).limit(limit)
     ]);
 
-    return res.json({ meta: { total, page, limit }, courses });
+    // add a top-level thumbnail_url for convenience (first lesson thumbnail)
+    const courses = docs.map((c) => {
+      const obj = c.toObject();
+      let thumb = null;
+      for (const ch of (obj.chapters || [])) {
+        for (const ls of (ch.lessons || [])) {
+          if (ls.thumbnail_url) { thumb = ls.thumbnail_url; break; }
+        }
+        if (thumb) break;
+      }
+      obj.thumbnail_url = thumb;
+      return obj;
+    });
+
+    return res.json({ meta: { total, page, limit, skip }, courses });
   } catch (err) {
     next(err);
   }

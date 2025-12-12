@@ -57,3 +57,39 @@ exports.attemptQuiz = async (req, res, next) => {
     next(err);
   }
 };
+
+exports.listQuizzes = async (req, res, next) => {
+  try {
+    const filter = {};
+    if (!(req.query.include_inactive === 'true' && req.user && req.user.role === 'admin')) {
+      filter.isActive = true;
+    }
+    if (req.query.course) filter.course = req.query.course;
+
+    const page = Math.max(1, parseInt(req.query.page || '1'));
+    const limit = Math.min(100, parseInt(req.query.limit || '10'));
+    const skip = (page - 1) * limit;
+
+    const [total, quizzes] = await Promise.all([
+      Quiz.countDocuments(filter),
+      Quiz.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit)
+    ]);
+
+    return res.json({ meta: { total, page, limit }, quizzes });
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.getQuiz = async (req, res, next) => {
+  try {
+    const quiz = await Quiz.findById(req.params.quizId);
+    if (!quiz) return res.status(404).json({ message: 'quiz not found' });
+    if (!quiz.isActive && (!req.user || req.user.role !== 'admin')) {
+      return res.status(404).json({ message: 'quiz not available' });
+    }
+    return res.json({ questions: quiz.questions, quiz });
+  } catch (err) {
+    next(err);
+  }
+};

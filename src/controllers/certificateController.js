@@ -39,14 +39,21 @@ exports.generateCertificate = async (userId, courseId, quizId) => {
 
 exports.listCertificates = async (req, res, next) => {
   try {
-    // admin can view all, employees view their own
-    if (req.user.role === 'admin') {
-      const certs = await Certificate.find().populate('user course');
-      return res.json({ certificates: certs });
-    } else {
-      const certs = await Certificate.find({ user: req.user.id }).populate('course');
-      return res.json({ certificates: certs });
+    const filter = {};
+    if (req.user.role !== 'admin') {
+      filter.user = req.user.id;
     }
+    const hasSkip = req.query.skip !== undefined;
+    const limit = Math.min(100, parseInt(req.query.limit || '10'));
+    const page = hasSkip ? Math.floor(parseInt(req.query.skip || '0') / limit) + 1 : Math.max(1, parseInt(req.query.page || '1'));
+    const skip = hasSkip ? Math.max(0, parseInt(req.query.skip || '0')) : (page - 1) * limit;
+
+    const [total, certs] = await Promise.all([
+      Certificate.countDocuments(filter),
+      Certificate.find(filter).populate('user course').sort({ awardedAt: -1 }).skip(skip).limit(limit)
+    ]);
+
+    return res.json({ meta: { total, page, limit, skip }, certificates: certs });
   } catch (err) {
     next(err);
   }

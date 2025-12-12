@@ -6,14 +6,25 @@ const Enrollment = require('../models/Enrollment');
 // List employees with pagination
 exports.listEmployees = async (req, res, next) => {
   try {
-    const page = Math.max(1, parseInt(req.query.page || '1'));
+    const hasSkip = req.query.skip !== undefined;
     const limit = Math.min(100, parseInt(req.query.limit || '10'));
-    const skip = (page - 1) * limit;
+    const page = hasSkip ? Math.floor(parseInt(req.query.skip || '0') / limit) + 1 : Math.max(1, parseInt(req.query.page || '1'));
+    const skip = hasSkip ? Math.max(0, parseInt(req.query.skip || '0')) : (page - 1) * limit;
 
     const filter = { role: 'employee' };
     // optionally filter by active status
     if (req.query.active !== undefined) {
       filter.isActive = req.query.active === 'true';
+    }
+    // search by name/email/user_name
+    if (req.query.q) {
+      const q = String(req.query.q).trim();
+      filter.$or = [
+        { first_name: { $regex: q, $options: 'i' } },
+        { last_name: { $regex: q, $options: 'i' } },
+        { user_name: { $regex: q, $options: 'i' } },
+        { email: { $regex: q, $options: 'i' } },
+      ];
     }
 
     const [total, employees] = await Promise.all([
@@ -25,7 +36,7 @@ exports.listEmployees = async (req, res, next) => {
         .limit(limit)
     ]);
 
-    return res.json({ meta: { total, page, limit }, employees });
+    return res.json({ meta: { total, page, limit, skip }, employees });
   } catch (err) {
     next(err);
   }

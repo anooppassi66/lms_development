@@ -16,8 +16,21 @@ exports.createCategory = async (req, res, next) => {
 
 exports.listCategories = async (req, res, next) => {
   try {
-    const cats = await Category.find().sort({ category_name: 1 });
-    return res.json({ categories: cats });
+    const filter = {};
+    if (req.query.q) {
+      const q = String(req.query.q).trim();
+      filter.category_name = { $regex: q, $options: 'i' };
+    }
+    const hasSkip = req.query.skip !== undefined;
+    const limit = Math.min(100, parseInt(req.query.limit || '10'));
+    const page = hasSkip ? Math.floor(parseInt(req.query.skip || '0') / limit) + 1 : Math.max(1, parseInt(req.query.page || '1'));
+    const skip = hasSkip ? Math.max(0, parseInt(req.query.skip || '0')) : (page - 1) * limit;
+
+    const [total, cats] = await Promise.all([
+      Category.countDocuments(filter),
+      Category.find(filter).sort({ category_name: 1 }).skip(skip).limit(limit)
+    ]);
+    return res.json({ meta: { total, page, limit, skip }, categories: cats });
   } catch (err) {
     next(err);
   }

@@ -16,4 +16,14 @@ router.post('/register', authMiddleware, requireRole('admin'), [body('email').is
 // edit profile for logged in user
 router.put('/profile', authMiddleware, authController.editProfile);
 
+// get profile for logged in user
+router.get('/profile', authMiddleware, authController.getProfile);
+
+// change password for logged in user
+router.put('/password', authMiddleware, [
+  body('current').isLength({ min: 1 }).withMessage('current required'),
+  body('newPassword').isLength({ min: 6 }).withMessage('newPassword min 6'),
+  validate
+], authController.changePassword);
+
 module.exports = router;

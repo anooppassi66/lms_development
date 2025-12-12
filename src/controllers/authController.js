@@ -63,6 +63,16 @@ exports.login = async (req, res, next) => {
   }
 };
 
+exports.getProfile = async (req, res, next) => {
+  try {
+    const user = await User.findById(req.user.id).select('-password');
+    if (!user) return res.status(404).json({ message: 'user not found' });
+    return res.json({ user });
+  } catch (err) {
+    next(err);
+  }
+};
+
 exports.editProfile = async (req, res, next) => {
   try {
     const allowed = ['first_name', 'last_name', 'user_name', 'phone_number', 'gender', 'dob', 'bio'];
@@ -72,6 +82,44 @@ exports.editProfile = async (req, res, next) => {
     });
     const user = await User.findByIdAndUpdate(req.user.id, updates, { new: true }).select('-password');
     return res.json({ user });
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.changePassword = async (req, res, next) => {
+  try {
+    const { current, newPassword } = req.body;
+    if (!current || !newPassword) return res.status(400).json({ message: 'current and newPassword required' });
+    if (String(newPassword).length < 6) return res.status(400).json({ message: 'new password must be at least 6 characters' });
+
+    const user = await User.findById(req.user.id);
+    if (!user) return res.status(404).json({ message: 'user not found' });
+    const ok = await user.comparePassword(current);
+    if (!ok) return res.status(401).json({ message: 'current password is incorrect' });
+
+    user.password = newPassword;
+    await user.save();
+    return res.json({ message: 'password updated' });
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.changePassword = async (req, res, next) => {
+  try {
+    const { current, newPassword } = req.body;
+    if (!current || !newPassword) return res.status(400).json({ message: 'current and newPassword required' });
+    if (String(newPassword).length < 6) return res.status(400).json({ message: 'new password must be at least 6 characters' });
+
+    const user = await User.findById(req.user.id);
+    if (!user) return res.status(404).json({ message: 'user not found' });
+    const ok = await user.comparePassword(current);
+    if (!ok) return res.status(401).json({ message: 'current password is incorrect' });
+
+    user.password = newPassword;
+    await user.save();
+    return res.json({ message: 'password updated' });
   } catch (err) {
     next(err);
   }
