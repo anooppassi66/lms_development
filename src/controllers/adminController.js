@@ -108,7 +108,7 @@ exports.dashboard = async (req, res, next) => {
         }
         if (thumb) break;
       }
-      return { id: c._id, title: c.title, status: c.status, enrolled: enrolledCount, thumbnail: thumb };
+      return { id: c._id, title: c.title, description: c.description, createdAt: c.createdAt, status: c.status, enrolled: enrolledCount, thumbnail: thumb };
     }));
 
     return res.json({
