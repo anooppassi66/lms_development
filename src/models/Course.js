@@ -5,6 +5,7 @@ const LessonSchema = new mongoose.Schema({
   video_url: { type: String },
   thumbnail_url: { type: String },
   description: { type: String },
+  durationSeconds: { type: Number },
   createdAt: { type: Date, default: Date.now }
 });
 
@@ -21,6 +22,8 @@ const CourseSchema = new mongoose.Schema({
   language: { type: String, enum: ['English', 'Hindi'], default: 'English' },
   short_description: { type: String },
   description: { type: String },
+  course_image: { type: String },
+  videoDurationMinutes: { type: Number, default: 0 },
   chapters: [ChapterSchema],
   status: { type: String, enum: ['published', 'draft', 'deleted'], default: 'draft' },
   isActive: { type: Boolean, default: true },

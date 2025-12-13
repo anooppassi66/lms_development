@@ -6,6 +6,12 @@ const quizController = require('../controllers/quizController');
 // Admin create quiz
 router.post('/', authMiddleware, requireRole('admin'), quizController.createQuiz);
 
+// Admin update quiz
+router.put('/:quizId', authMiddleware, requireRole('admin'), quizController.updateQuiz);
+
+// Admin delete (deactivate) quiz
+router.delete('/:quizId', authMiddleware, requireRole('admin'), quizController.deleteQuiz);
+
 // List quizzes
 router.get('/', authMiddleware, quizController.listQuizzes);
 

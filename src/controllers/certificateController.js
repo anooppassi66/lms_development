@@ -11,8 +11,14 @@ exports.generateCertificate = async (userId, courseId, quizId) => {
   const course = await Course.findById(courseId);
   if (!user || !course) throw new Error('user or course not found');
 
-  const fileName = `${user.first_name || 'user'}_${user._id}_${course.title.replace(/\s+/g, '_')}_${Date.now()}.pdf`;
-  const filePath = path.join(__dirname, '../../certificates', fileName);
+  const safeCourseTitle = String(course.title || 'course').replace(/[^\w\-]+/g, '_');
+  const safeUserName = String(user.first_name || 'user').replace(/[^\w\-]+/g, '_');
+  const fileName = `${safeUserName}_${user._id}_${safeCourseTitle}_${Date.now()}.pdf`;
+  const outDir = path.join(__dirname, '..', '..', 'certificates');
+  try {
+    fs.mkdirSync(outDir, { recursive: true });
+  } catch {}
+  const filePath = path.join(outDir, fileName);
 
   const doc = new PDFDocument({ size: 'A4', margin: 50 });
   const stream = fs.createWriteStream(filePath);

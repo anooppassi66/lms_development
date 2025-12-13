@@ -23,7 +23,7 @@ const storage = multer.diskStorage({
 const upload = multer({ storage });
 
 // Admin course management
-router.post('/', authMiddleware, requireRole('admin'), [
+router.post('/', authMiddleware, requireRole('admin'), upload.single('course_image'), [
   require('express-validator').body('title').isLength({ min: 1 }).withMessage('title required'),
   require('express-validator').body('category').isLength({ min: 1 }).withMessage('category required')
 ], require('../middleware/validate'), courseController.createCourse);

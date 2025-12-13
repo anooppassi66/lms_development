@@ -7,7 +7,10 @@ exports.createQuiz = async (req, res, next) => {
   try {
     const { course, title, questions, passMarks, durationMinutes, isPublic } = req.body;
     if (!title || !questions || !Array.isArray(questions) || questions.length === 0) return res.status(400).json({ message: 'title and questions required' });
-    const quiz = await Quiz.create({ course, title, questions, passMarks, durationMinutes, isPublic });
+    const total = (questions || []).reduce((s, q) => s + (typeof q.marks === 'number' && q.marks > 0 ? q.marks : 1), 0);
+    const pm = typeof passMarks === 'number' ? passMarks : parseInt(String(passMarks || 0));
+    if (pm > total) return res.status(400).json({ message: 'passMarks cannot exceed total marks' });
+    const quiz = await Quiz.create({ course, title, questions, passMarks: pm, durationMinutes, isPublic });
     return res.status(201).json({ quiz });
   } catch (err) {
     next(err);
@@ -33,15 +36,27 @@ exports.attemptQuiz = async (req, res, next) => {
 
     // grade
     const qMap = {};
-    quiz.questions.forEach(q => qMap[q._id] = q);
+    (quiz.questions || []).forEach(q => { qMap[String(q._id)] = q; });
     let score = 0;
     (answers || []).forEach(ans => {
-      const q = qMap[ans.questionId];
+      const q = qMap[String(ans.questionId)];
       if (!q) return;
-      if (ans.answerIndex === q.correctIndex) score += (q.marks || 0);
+      const givenIdx = Number(ans.answerIndex);
+      const correctIdx = Number(q.correctIndex);
+      if (Number.isFinite(givenIdx) && Number.isFinite(correctIdx) && givenIdx === correctIdx) {
+        const marks = (typeof q.marks === 'number' && q.marks > 0) ? q.marks : 1;
+        score += marks;
+      }
     });
 
-    const passed = score >= quiz.passMarks;
+    const totalMarksCalculated = (quiz.questions || []).reduce((s, q) => {
+      const m = (typeof q.marks === 'number' && q.marks > 0) ? q.marks : 1;
+      return s + m;
+    }, 0);
+
+    const pm = Number(quiz.passMarks || 0);
+    const effectivePassMarks = Math.min(pm, totalMarksCalculated || pm);
+    const passed = score >= effectivePassMarks;
 
       let certObj = null;
     if (passed && quiz.course) {
@@ -52,7 +67,7 @@ exports.attemptQuiz = async (req, res, next) => {
         certObj = await certificateController.generateCertificate(userId, quiz.course, quiz._id);
     }
 
-      return res.json({ score, total: quiz.totalMarks, passed, certificate: certObj });
+      return res.json({ score, total: totalMarksCalculated || quiz.totalMarks || 0, passed, certificate: certObj });
   } catch (err) {
     next(err);
   }
@@ -72,7 +87,7 @@ exports.listQuizzes = async (req, res, next) => {
 
     const [total, quizzes] = await Promise.all([
       Quiz.countDocuments(filter),
-      Quiz.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit)
+      Quiz.find(filter).populate('course').sort({ createdAt: -1 }).skip(skip).limit(limit)
     ]);
 
     return res.json({ meta: { total, page, limit }, quizzes });
@@ -89,6 +104,45 @@ exports.getQuiz = async (req, res, next) => {
       return res.status(404).json({ message: 'quiz not available' });
     }
     return res.json({ questions: quiz.questions, quiz });
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.updateQuiz = async (req, res, next) => {
+  try {
+    const quizId = req.params.quizId;
+    const quiz = await Quiz.findById(quizId);
+    if (!quiz) return res.status(404).json({ message: 'quiz not found' });
+    const allowed = ['course', 'title', 'passMarks', 'durationMinutes', 'isPublic', 'isActive'];
+    allowed.forEach(k => {
+      if (req.body[k] !== undefined) quiz[k] = req.body[k];
+    });
+    if (Array.isArray(req.body.questions)) {
+      if (req.body.questions.length === 0) return res.status(400).json({ message: 'questions cannot be empty' });
+      quiz.questions = req.body.questions;
+      quiz.totalMarks = (quiz.questions || []).reduce((s, q) => s + (q.marks || 0), 0);
+    }
+    const total = (quiz.questions || []).reduce((s, q) => s + (typeof q.marks === 'number' && q.marks > 0 ? q.marks : 1), 0);
+    const pm = typeof quiz.passMarks === 'number' ? quiz.passMarks : parseInt(String(quiz.passMarks || 0));
+    if (pm > total) return res.status(400).json({ message: 'passMarks cannot exceed total marks' });
+    quiz.passMarks = pm;
+    await quiz.save();
+    return res.json({ quiz });
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.deleteQuiz = async (req, res, next) => {
+  try {
+    const quizId = req.params.quizId;
+    const quiz = await Quiz.findById(quizId);
+    if (!quiz) return res.status(404).json({ message: 'quiz not found' });
+    if (!quiz.isActive) return res.status(400).json({ message: 'quiz already deactivated' });
+    quiz.isActive = false;
+    await quiz.save();
+    return res.json({ message: 'quiz deactivated', quiz: { id: quiz._id, isActive: quiz.isActive } });
   } catch (err) {
     next(err);
   }

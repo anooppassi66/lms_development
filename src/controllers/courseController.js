@@ -4,7 +4,7 @@ exports.createCourse = async (req, res, next) => {
   try {
     const { title, category, level, language, short_description, description, status } = req.body;
     if (!title || !category) return res.status(400).json({ message: 'title and category are required' });
-    const course = await Course.create({ title, category, level, language, short_description, description, status });
+    const course = await Course.create({ title, category, level, language, short_description, description, status, course_image: (req.file ? `/uploads/${req.file.filename}` : undefined) });
     return res.status(201).json({ course });
   } catch (err) {
     next(err);
@@ -103,15 +103,24 @@ exports.getCourse = async (req, res, next) => {
 // public course details with optional user progress mapping
 exports.getCoursePublic = async (req, res, next) => {
   try {
-    const course = await Course.findById(req.params.id).populate('category');
+    const CourseModel = Course;
+    const Enrollment = require('../models/Enrollment');
+    const course = await CourseModel.findById(req.params.id).populate('category');
     if (!course) return res.status(404).json({ message: 'course not found' });
 
     // base response
     const response = { course: course.toObject() };
+    const enrolledCount = await Enrollment.countDocuments({ course: course._id });
+    response.course.enrolledCount = enrolledCount;
+    if (!response.course.videoDurationMinutes) {
+      const totalSeconds = (response.course.chapters || []).reduce((sum, ch) => {
+        return sum + (ch.lessons || []).reduce((acc, ls) => acc + (ls.durationSeconds || 0), 0);
+      }, 0);
+      response.course.videoDurationMinutes = Math.round(totalSeconds / 60);
+    }
 
     // if a user is present (optionalAuth), include per-lesson completed flags
     if (req.user && req.user.id) {
-      const Enrollment = require('../models/Enrollment');
       const enrollment = await Enrollment.findOne({ user: req.user.id, course: course._id });
       const completedSet = new Set((enrollment ? enrollment.completedLessons : []).map(cl => `${cl.chapter.toString()}::${cl.lesson.toString()}`));
 
@@ -154,7 +163,7 @@ exports.addChapter = async (req, res, next) => {
 
 exports.addLesson = async (req, res, next) => {
   try {
-    const { name, description } = req.body;
+    const { name, description, durationSeconds, durationMinutes } = req.body;
     const course = await Course.findById(req.params.courseId);
     if (!course) return res.status(404).json({ message: 'course not found' });
     const chapter = course.chapters.id(req.params.chapterId);
@@ -171,8 +180,17 @@ exports.addLesson = async (req, res, next) => {
         lesson.thumbnail_url = `/uploads/${req.files.thumbnail[0].filename}`;
       }
     }
+    const durSec = typeof durationSeconds === 'number' ? durationSeconds : parseInt(String(durationSeconds || 0));
+    const durMin = typeof durationMinutes === 'number' ? durationMinutes : parseInt(String(durationMinutes || 0));
+    const finalDurSec = !isNaN(durSec) && durSec > 0 ? durSec : (!isNaN(durMin) && durMin > 0 ? durMin * 60 : undefined);
+    if (finalDurSec) lesson.durationSeconds = finalDurSec;
 
     chapter.lessons.push(lesson);
+    await course.save();
+    const totalSeconds = course.chapters.reduce((sum, ch) => {
+      return sum + (ch.lessons || []).reduce((acc, ls) => acc + (ls.durationSeconds || 0), 0);
+    }, 0);
+    course.videoDurationMinutes = Math.round(totalSeconds / 60);
     await course.save();
     return res.status(201).json({ chapter });
   } catch (err) {

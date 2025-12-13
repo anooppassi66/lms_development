@@ -98,7 +98,7 @@ exports.dashboard = async (req, res, next) => {
     const avgCoursesCompleted = totalEmployees > 0 ? Math.round((completedEnrollments / totalEmployees) * 100) / 100 : 0;
     const employeeCompletionPercentage = totalEmployees > 0 ? Math.round((employeesWithCompleted / totalEmployees) * 100) : 0;
 
-    const recent = await Course.find({}).sort({ createdAt: -1 }).limit(5);
+    const recent = await Course.find({}).sort({ createdAt: -1 }).limit(3);
     const recentWithEnrollCounts = await Promise.all(recent.map(async (c) => {
       const enrolledCount = await Enrollment.countDocuments({ course: c._id });
       let thumb = null;
