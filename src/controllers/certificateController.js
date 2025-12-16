@@ -60,7 +60,12 @@ exports.listCertificates = async (req, res, next) => {
 
     const [total, certs] = await Promise.all([
       Certificate.countDocuments(filter),
-      Certificate.find(filter).populate('user course').sort({ awardedAt: -1 }).skip(skip).limit(limit)
+      Certificate.find(filter)
+        .populate('user')
+        .populate({ path: 'course', populate: { path: 'category' } })
+        .sort({ awardedAt: -1 })
+        .skip(skip)
+        .limit(limit)
     ]);
 
     return res.json({ meta: { total, page, limit, skip }, certificates: certs });
