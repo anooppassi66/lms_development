@@ -6,6 +6,8 @@ const adminController = require('../controllers/adminController');
 // Admin-only employee management
 router.get('/employees', authMiddleware, requireRole('admin'), adminController.listEmployees);
 router.post('/employees/:employeeId/deactivate', authMiddleware, requireRole('admin'), adminController.deactivateEmployee);
+router.post('/employees/:employeeId/activate', authMiddleware, requireRole('admin'), adminController.activateEmployee);
+router.put('/employees/:employeeId', authMiddleware, requireRole('admin'), adminController.updateEmployee);
 
 // Admin-only quiz management
 router.post('/quizzes/:quizId/deactivate', authMiddleware, requireRole('admin'), adminController.deactivateQuiz);

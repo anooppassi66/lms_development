@@ -64,7 +64,7 @@ exports.attemptQuiz = async (req, res, next) => {
       enrollment.isCompleted = true;
       enrollment.completedAt = new Date();
       await enrollment.save();
-        certObj = await certificateController.generateCertificate(userId, quiz.course, quiz._id);
+        certObj = await certificateController.generateCertificate(userId, quiz.course, quiz._id, score, totalMarksCalculated || quiz.totalMarks || 0);
     }
 
       return res.json({ score, total: totalMarksCalculated || quiz.totalMarks || 0, passed, certificate: certObj });

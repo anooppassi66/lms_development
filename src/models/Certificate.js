@@ -5,6 +5,8 @@ const CertificateSchema = new mongoose.Schema({
   course: { type: mongoose.Schema.Types.ObjectId, ref: 'Course', required: true },
   quiz: { type: mongoose.Schema.Types.ObjectId, ref: 'Quiz' },
   filePath: { type: String, required: true },
+  marks: { type: Number, default: 0 },
+  outOf: { type: Number, default: 0 },
   awardedAt: { type: Date, default: Date.now }
 });
 

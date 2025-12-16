@@ -197,3 +197,44 @@ exports.addLesson = async (req, res, next) => {
     next(err);
   }
 };
+
+exports.updateLesson = async (req, res, next) => {
+  try {
+    const { name, description, durationSeconds, durationMinutes } = req.body;
+    const course = await Course.findById(req.params.courseId);
+    if (!course) return res.status(404).json({ message: 'course not found' });
+    const chapter = course.chapters.id(req.params.chapterId);
+    if (!chapter) return res.status(404).json({ message: 'chapter not found' });
+    const lesson = chapter.lessons.id(req.params.lessonId);
+    if (!lesson) return res.status(404).json({ message: 'lesson not found' });
+
+    if (name !== undefined) lesson.name = name;
+    if (description !== undefined) lesson.description = description;
+
+    if (req.files) {
+      if (req.files.video && req.files.video[0]) {
+        lesson.video_url = `/uploads/${req.files.video[0].filename}`;
+      }
+      if (req.files.thumbnail && req.files.thumbnail[0]) {
+        lesson.thumbnail_url = `/uploads/${req.files.thumbnail[0].filename}`;
+      }
+    }
+
+    const durSec = typeof durationSeconds === 'number' ? durationSeconds : parseInt(String(durationSeconds || 0));
+    const durMin = typeof durationMinutes === 'number' ? durationMinutes : parseInt(String(durationMinutes || 0));
+    const finalDurSec = !isNaN(durSec) && durSec > 0 ? durSec : (!isNaN(durMin) && durMin > 0 ? durMin * 60 : undefined);
+    if (finalDurSec) lesson.durationSeconds = finalDurSec;
+
+    await course.save();
+
+    const totalSeconds = course.chapters.reduce((sum, ch) => {
+      return sum + (ch.lessons || []).reduce((acc, ls) => acc + (ls.durationSeconds || 0), 0);
+    }, 0);
+    course.videoDurationMinutes = Math.round(totalSeconds / 60);
+    await course.save();
+
+    return res.json({ lesson });
+  } catch (err) {
+    next(err);
+  }
+};

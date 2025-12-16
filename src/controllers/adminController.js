@@ -61,6 +61,51 @@ exports.deactivateEmployee = async (req, res, next) => {
   }
 };
 
+// Activate employee account
+exports.activateEmployee = async (req, res, next) => {
+  try {
+    const employeeId = req.params.employeeId;
+    const user = await User.findById(employeeId);
+    if (!user) return res.status(404).json({ message: 'employee not found' });
+    if (user.role !== 'employee') return res.status(400).json({ message: 'user is not an employee' });
+    if (user.isActive) return res.status(400).json({ message: 'employee already active' });
+    user.isActive = true;
+    user.deactivatedAt = null;
+    await user.save();
+    return res.json({ message: 'employee activated', user: { id: user._id, email: user.email, isActive: user.isActive } });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// Update employee profile (admin)
+exports.updateEmployee = async (req, res, next) => {
+  try {
+    const employeeId = req.params.employeeId;
+    const user = await User.findById(employeeId);
+    if (!user) return res.status(404).json({ message: 'employee not found' });
+    if (user.role !== 'employee') return res.status(400).json({ message: 'user is not an employee' });
+    const allowed = ['first_name', 'last_name', 'user_name', 'email', 'phone_number', 'gender', 'dob', 'bio'];
+    for (const k of allowed) {
+      if (req.body[k] !== undefined) {
+        user[k] = req.body[k];
+      }
+    }
+    if (req.body.email && String(req.body.email).toLowerCase() !== String(user.email).toLowerCase()) {
+      const exists = await User.findOne({ email: String(req.body.email).toLowerCase() });
+      if (exists && String(exists._id) !== String(user._id)) {
+        return res.status(400).json({ message: 'email already in use' });
+      }
+    }
+    await user.save();
+    const out = user.toObject();
+    delete out.password;
+    return res.json({ user: out });
+  } catch (err) {
+    next(err);
+  }
+};
+
 // Deactivate quiz (soft delete)
 exports.deactivateQuiz = async (req, res, next) => {
   try {

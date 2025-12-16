@@ -44,6 +44,11 @@ router.post('/:courseId/chapters/:chapterId/lessons', authMiddleware, requireRol
   require('express-validator').body('name').optional().isLength({ min: 1 })
 ], require('../middleware/validate'), courseController.addLesson);
 
+router.put('/:courseId/chapters/:chapterId/lessons/:lessonId', authMiddleware, requireRole('admin'), upload.fields([
+  { name: 'video', maxCount: 1 },
+  { name: 'thumbnail', maxCount: 1 }
+]), courseController.updateLesson);
+
 // Public course listing and details (employees)
 router.get('/public/list', courseController.listCourses);
 // optionalAuth will populate req.user if token provided

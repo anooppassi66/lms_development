@@ -5,7 +5,7 @@ const Certificate = require('../models/Certificate');
 const Course = require('../models/Course');
 const User = require('../models/User');
 
-exports.generateCertificate = async (userId, courseId, quizId) => {
+exports.generateCertificate = async (userId, courseId, quizId, marks = 0, outOf = 0) => {
   // helper used by quizController — returns certificate metadata
   const user = await User.findById(userId);
   const course = await Course.findById(courseId);
@@ -31,6 +31,10 @@ exports.generateCertificate = async (userId, courseId, quizId) => {
   doc.fontSize(12).text(`Has successfully completed the course: ${course.title}`, { align: 'center' });
   doc.moveDown();
   doc.text(`Date: ${new Date().toLocaleDateString()}`, { align: 'center' });
+  if (Number.isFinite(marks) && Number.isFinite(outOf) && outOf > 0) {
+    doc.moveDown();
+    doc.text(`Marks: ${marks} / ${outOf}`, { align: 'center' });
+  }
 
   doc.end();
 
@@ -39,7 +43,7 @@ exports.generateCertificate = async (userId, courseId, quizId) => {
     stream.on('error', reject);
   });
 
-  const cert = await Certificate.create({ user: userId, course: courseId, quiz: quizId, filePath: `/certificates/${fileName}` });
+  const cert = await Certificate.create({ user: userId, course: courseId, quiz: quizId, filePath: `/certificates/${fileName}`, marks: marks || 0, outOf: outOf || 0 });
   return cert;
 };
 
