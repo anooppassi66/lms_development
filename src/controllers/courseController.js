@@ -59,6 +59,15 @@ exports.listCourses = async (req, res, next) => {
     // only include active unless explicitly requested
     if (!req.query.include_inactive) filter.isActive = true;
 
+    if (req.user && req.user.id) {
+      const Enrollment = require('../models/Enrollment');
+      const allEnrolled = await Enrollment.find({ user: req.user.id }).select('course');
+      const excludeIds = allEnrolled.map(e => e.course).filter(Boolean);
+      if (excludeIds.length > 0) {
+        filter._id = { $nin: excludeIds };
+      }
+    }
+
     // pagination (support skip/limit or page/limit)
     const hasSkip = req.query.skip !== undefined;
     const limit = Math.min(100, parseInt(req.query.limit || '10'));

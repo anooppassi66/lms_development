@@ -50,9 +50,8 @@ router.put('/:courseId/chapters/:chapterId/lessons/:lessonId', authMiddleware, r
 ]), courseController.updateLesson);
 
 // Public course listing and details (employees)
-router.get('/public/list', courseController.listCourses);
-// optionalAuth will populate req.user if token provided
 const { optionalAuth } = require('../middleware/auth');
+router.get('/public/list', authMiddleware, courseController.listCourses);
 router.get('/public/:id', optionalAuth, courseController.getCoursePublic);
 
 module.exports = router;

@@ -23,7 +23,7 @@ exports.listUserEnrollments = async (req, res, next) => {
     // optional status filter: active|completed
     if (req.query.status === 'active') filter.isCompleted = false;
     if (req.query.status === 'completed') filter.isCompleted = true;
-    const enrollments = await Enrollment.find(filter).populate('course');
+    const enrollments = await Enrollment.find(filter).populate({ path: 'course', populate: { path: 'category' } });
     return res.json({ enrollments });
   } catch (err) {
     next(err);
